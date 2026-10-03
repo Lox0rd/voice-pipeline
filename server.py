@@ -19,6 +19,7 @@ SAMPLE_RATE = 16000
 CHUNK_SIZE = 1024
 
 conversation_history = []
+system_prompt = "Ты полезный голосовой ассистент. Отвечай кратко и по существу, чтобы ответ можно было озвучить."
 
 # Инициализируем TTS и STT при запуске сервера
 print("Инициализация TTS и STT сервисов...")
@@ -61,7 +62,7 @@ def handle_voice():
                     model="qwen3.8-omni-flash",
                     max_tokens=1024,
                     messages=[
-                        {"role": "system", "content": "Ты полезный голосовой ассистент. Отвечай кратко и по существу, чтобы ответ можно было озвучить."},
+                        {"role": "system", "content": system_prompt},
                         *conversation_history
                     ]
                 )
@@ -134,7 +135,7 @@ def handle_text():
                     model="qwen3.8-omni-flash",
                     max_tokens=1024,
                     messages=[
-                        {"role": "system", "content": "Ты полезный ассистент. Отвечай кратко и по существу."},
+                        {"role": "system", "content": system_prompt},
                         *conversation_history
                     ]
                 )
@@ -171,6 +172,45 @@ def handle_text():
         print(f"Ошибка сервера: {e}")
         return jsonify({"error": str(e)}), 500
 
+@app.route('/api/system-prompt', methods=['POST'])
+def update_system_prompt():
+    """Изменяет системный промпт для LLM"""
+    global system_prompt
+
+    try:
+        data = request.get_json()
+
+        if not data or 'prompt' not in data:
+            return jsonify({
+                "error": "Необходимо передать поле 'prompt'"
+            }), 400
+
+        new_prompt = data['prompt']
+
+        if not isinstance(new_prompt, str):
+            return jsonify({
+                "error": "Поле 'prompt' должно быть строкой"
+            }), 400
+
+        if not new_prompt.strip():
+            return jsonify({
+                "error": "Системный промпт не может быть пустым"
+            }), 400
+
+        system_prompt = new_prompt.strip()
+
+        print(f"Системный промпт изменён: {system_prompt}")
+
+        return jsonify({
+            "message": "Системный промпт успешно изменён",
+            "system_prompt": system_prompt
+        })
+
+    except Exception as e:
+        print(f"Ошибка изменения системного промпта: {e}")
+        return jsonify({
+            "error": str(e)
+        }), 500
 
 @app.route('/api/reset', methods=['POST'])
 def reset_conversation():
@@ -187,4 +227,4 @@ def health():
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=False)
+    app.run(host='0.0.0.0', port=5000, debug=True)
